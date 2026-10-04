@@ -5,6 +5,8 @@
 
 A practical rainwater harvesting feasibility and awareness tool for **PS 53**. Define a roof, explore rainfall, compare storage, and take a clear water plan away.
 
+**[Open the live website](https://rithvik-7.github.io/HydroLens/)** · **[90-second demo guide](docs/DEMO.md)** · **[Model and assumptions](docs/MODEL.md)**
+
 ## What works
 
 - **Roof workspace:** local image upload, manual boundary editing, measured area input, zoom controls, keyboard and tap alternatives, and rejection of crossing outlines.
