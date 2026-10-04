@@ -3,7 +3,8 @@ import {useRef,useState,type PointerEvent as ReactPointerEvent} from "react";
 import {Check,Crosshair,Minus,Pencil,Plus,ScanLine,Upload,RotateCcw,Move} from "lucide-react";
 import {Tabs,TabsList,TabsTrigger} from "@/components/ui/tabs";
 import {NumberField} from "@/components/planner-panels";
-import {fmt,polygonArea} from "@/lib/hydrology";
+import {assetPath} from "@/lib/assets";
+import {fmt,polygonArea,validRoofOutline} from "@/lib/hydrology";
 
 const ORIGINAL=[[400.4,274.4],[602.2,274.4],[608.7,678.7],[395.8,678.7]];
 const DIRECTIONS=[{label:"Left",key:"ArrowLeft"},{label:"Up",key:"ArrowUp"},{label:"Down",key:"ArrowDown"},{label:"Right",key:"ArrowRight"}];
@@ -36,14 +37,14 @@ export function RoofMap({area,onArea,expanded=false}:{area:number;onArea:(n:numb
   const x=Math.max(10,Math.min(990,(e.clientX-rect.left)/rect.width*1000));
   const y=Math.max(10,Math.min(990,(e.clientY-rect.top)/rect.height*1000));
   const next=points.map((p,i)=>i===d.index?[x,y]:p);
-  if(polygonArea(next)/d.before>0.02){setPoints(next);scaleArea(next,d.before,d.base);}
+  if(validRoofOutline(next)&&polygonArea(next)/d.before>0.02){setPoints(next);scaleArea(next,d.before,d.base);}
  }
  function keyMove(index:number,key:string){
   if(!editing)return;
   const delta=key==="ArrowLeft"?[-8,0]:key==="ArrowRight"?[8,0]:key==="ArrowUp"?[0,-8]:key==="ArrowDown"?[0,8]:null;
   if(!delta)return;
   const next=points.map((p,i)=>i===index?[Math.max(10,Math.min(990,p[0]+delta[0])),Math.max(10,Math.min(990,p[1]+delta[1]))]:p);
-  if(polygonArea(next)/polygonArea(points)<=0.02)return;
+  if(!validRoofOutline(next)||polygonArea(next)/polygonArea(points)<=0.02)return;
   scaleArea(next);setPoints(next);
  }
  function upload(e:React.ChangeEvent<HTMLInputElement>){
@@ -59,8 +60,8 @@ export function RoofMap({area,onArea,expanded=false}:{area:number;onArea:(n:numb
   <div className="map-surface">
    <div className="map-grid"/>
    <div className="map-viewport" style={{transform:`scale(${zoom})`}}>
-    <svg ref={svg} viewBox="0 0 1000 1000" preserveAspectRatio="none" className={`roof-overlay ${editing?"editing":""}`} aria-label="Roof image with manual boundary">
-     <image href={source||"/neighborhood.png"} width="1000" height="1000" preserveAspectRatio="none" onError={()=>setFailedImage(true)}/>
+    <svg role="group" ref={svg} viewBox="0 0 1000 1000" preserveAspectRatio="none" className={`roof-overlay ${editing?"editing":""}`} aria-label="Roof image with manual boundary">
+     <image href={source||assetPath("neighborhood.webp")} width="1000" height="1000" preserveAspectRatio="none" onError={()=>setFailedImage(true)}/>
      <rect width="1000" height="1000" className="map-shade"/>
      {layer==="boundary"&&<>
       <polygon points={points.map(p=>p.join(",")).join(" ")} fill="rgba(72,212,169,.2)" stroke="#a1ffce" strokeWidth="2" vectorEffect="non-scaling-stroke"/>

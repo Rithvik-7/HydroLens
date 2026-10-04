@@ -11,7 +11,8 @@ export const DEFAULT_INPUTS:PlanningInputs={area:186,runoff:.85,efficiency:.9,ta
 export type MonthResult={month:string;rain:number;collected:number;supplied:number;overflow:number;unmet:number;closingStorage:number};
 export function validateInputs(v:PlanningInputs){
  for(const [key,min,max] of [["area",1,100000],["runoff",0,1],["efficiency",0,1],["tank",0,1000000],["people",1,1000],["dailyPerPerson",0,1000]] as const){if(!Number.isFinite(v[key])||v[key]<min||v[key]>max)throw new Error(`Invalid ${key}`);}
- if(v.rain.length!==12||v.rain.some(x=>!Number.isFinite(x)||x<0||x>3000))throw new Error("Supply twelve monthly rainfall amounts between 0 and 3,000 mm.");
+ if(!Number.isInteger(v.people))throw new Error("People must be a whole number.");
+ if(!Array.isArray(v.rain)||v.rain.length!==12||Array.from(v.rain).some(x=>!Number.isFinite(x)||x<0||x>3000))throw new Error("Supply twelve monthly rainfall amounts between 0 and 3,000 mm.");
 }
 /** Daily mass balance, initially empty. Rain is spread over synthetic wet days.
  * Storage fills before daily demand is met; excess over capacity is lost first.
@@ -37,3 +38,24 @@ export function simulate(v:PlanningInputs){
 }
 export function polygonArea(points:number[][]){return Math.abs(points.reduce((sum,p,i)=>{const next=points[(i+1)%points.length];return sum+p[0]*next[1]-next[0]*p[1]},0))/2;}
 export const fmt=(v:number)=>Math.round(v).toLocaleString("en-IN");
+
+/** Transparent sizing heuristic, not a trained model or economic optimum.
+ * Find the smallest 500 L step retaining 95% of the best simulated supply
+ * within the 1,000–15,000 L search range. Zero-supply cases have no recommendation.
+ */
+export function recommendStorage(inputs:PlanningInputs){
+ const options=Array.from({length:29},(_,i)=>{
+  const tank=1000+i*500;const result=simulate({...inputs,tank});
+  return {tank,supplied:result.supplied,coverage:result.coverage,overflow:result.overflow};
+ });
+ const bestSupply=Math.max(...options.map(o=>o.supplied));
+ const recommended=bestSupply>0?options.find(o=>o.supplied>=bestSupply*.95-1e-6)!:null;
+ return {options,recommended,bestSupply,targetFraction:.95};
+}
+
+/** A convex outline avoids crossing edges and degenerate roof boundaries. */
+export function validRoofOutline(points:number[][]){
+ if(points.length!==4||points.some(p=>p.length!==2||p.some(x=>!Number.isFinite(x))))return false;
+ const turns=points.map((p,i)=>{const q=points[(i+1)%4],r=points[(i+2)%4];return(q[0]-p[0])*(r[1]-q[1])-(q[1]-p[1])*(r[0]-q[0]);});
+ return polygonArea(points)>100 && (turns.every(v=>v>0)||turns.every(v=>v<0));
+}

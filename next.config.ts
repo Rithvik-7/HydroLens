@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // GitHub Pages uses the dedicated browser entry in vite.pages.config.ts.
 };
 
 export default nextConfig;

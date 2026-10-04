@@ -1,11 +1,15 @@
 {
-  "name": "site-creator-vinext-starter",
+  "name": "hydrolens",
   "version": "0.1.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
+    "build:pages": "node scripts/build-pages.mjs",
+    "preview:pages": "vite preview --config vite.pages.config.ts --host 127.0.0.1 --port 4173",
+    "typecheck": "tsc --noEmit --incremental false",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
     "install:ci": "node scripts/install-ci.mjs",
     "dev": "node scripts/run-framework.mjs dev",
     "build": "node scripts/run-framework.mjs build",

@@ -1,0 +1,9 @@
+"use client";
+import {useMemo} from "react";
+import {CircleCheck,SlidersHorizontal} from "lucide-react";
+import {fmt,recommendStorage,type PlanningInputs} from "@/lib/hydrology";
+
+export function StorageInsight({inputs,onSelect}:{inputs:PlanningInputs;onSelect:(tank:number)=>void}){
+ const sizing=useMemo(()=>recommendStorage(inputs),[inputs]);const pick=sizing.recommended;
+ return <section className="glass-panel sizing-insight"><div className="sizing-copy"><div className="eyebrow"><SlidersHorizontal size={16}/>TANK SIZING INSIGHT</div><h2>{pick?`${fmt(pick.tank)} L is a useful starting point.`:"No usable supply in this scenario."}</h2><p>{pick?`The smallest of 29 tested capacities reaching at least 95% of the annual supply achieved by a 15,000 L tank.`:"Check roof area, rainfall, collection efficiency, and daily demand before choosing storage."}</p></div>{pick&&<div className="sizing-action"><strong>{pick.coverage.toFixed(1)}%<span>annual demand supplied</span></strong><button className={`button ${inputs.tank===pick.tank?"secondary":"primary"}`} onClick={()=>onSelect(pick.tank)}>{inputs.tank===pick.tank?<><CircleCheck size={16}/>Using this size</>:"Use suggested size"}</button></div>}<div className="sizing-curve" role="img" aria-label="Simulated annual water supply for tank capacities from one thousand to fifteen thousand litres"><div className="sizing-bars">{sizing.options.map(o=><div key={o.tank} className={o.tank===pick?.tank?"suggested":""} style={{height:`${Math.max(3,sizing.bestSupply?o.supplied/sizing.bestSupply*100:0)}%`}} title={`${fmt(o.tank)} L tank: ${fmt(o.supplied)} L supplied`}/>)}</div><div className="sizing-axis"><span>1,000 L capacity</span><span>15,000 L capacity</span></div><p>Model-based suggestion · synthetic storm timing · installation costs excluded</p></div></section>;
+}

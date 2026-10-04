@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { assetPath } from "@/lib/assets";
 
 export const metadata: Metadata = {
   title: "HydroLens — See your roof’s water potential",
   description: "Explore your rooftop’s rainwater potential, compare storage options, and make a practical water plan with HydroLens.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: assetPath("favicon.svg"),
+    shortcut: assetPath("favicon.svg"),
   },
 };
 
