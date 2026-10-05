@@ -4,6 +4,8 @@ import { prepareRequest } from './advisor.ts';
 const origins = new Set((process.env.ALLOWED_ORIGINS || 'https://hydrolens-water-planner.onrender.com,https://rithvik-7.github.io,http://localhost:4173,http://127.0.0.1:4173').split(','));
 const buckets = new Map<string, {start: number; count: number}>();
 let active = 0;
+const GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 function allowed(id: string, limit: number) {
   const now = Date.now();
   for (const [key, value] of buckets) if (now - value.start > 60000) buckets.delete(key);
@@ -37,11 +39,16 @@ createServer(async (req, res) => {
   } catch {return reply(400, {error: 'Please send a valid plan and a question of up to 500 characters.'});}
   active++;
   try {
-    const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent', {
-      method: 'POST', headers: {'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY},
-      body: JSON.stringify(payload), signal: AbortSignal.timeout(45000),
-    });
-    if (!upstream.ok) {reply(upstream.status === 429 ? 429 : 502, {error: upstream.status === 429 ? 'Google AI quota is temporarily busy. Please retry later.' : 'The AI provider is unavailable. Please retry shortly.'}); return;}
+    let upstream: Response | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+        method: 'POST', headers: {'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY},
+        body: JSON.stringify(payload), signal: AbortSignal.timeout(45000),
+      });
+      if (upstream.ok || ![429, 500, 502, 503, 504].includes(upstream.status)) break;
+      await sleep(800 * (attempt + 1));
+    }
+    if (!upstream?.ok) {reply(upstream?.status === 429 ? 429 : 502, {error: upstream?.status === 429 ? 'Google AI quota is temporarily busy. Please retry later.' : 'The AI provider is unavailable. Please retry shortly.'}); return;}
     const data = await upstream.json() as {candidates?: {content?: {parts?: {text?: string}[]}}[]};
     const answer = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
     if (!answer) return reply(502, {error: 'The AI could not answer that question. Try rephrasing it.'});
