@@ -5,7 +5,7 @@
 
 A practical rainwater harvesting feasibility and awareness tool for **PS 53**. Define a roof, explore rainfall, compare storage, and take a clear water plan away.
 
-**[Open the live website](https://rithvik-7.github.io/HydroLens/)** · **[90-second demo guide](docs/DEMO.md)** · **[Model and assumptions](docs/MODEL.md)**
+**[Open the live website on Render](https://hydrolens-water-planner.onrender.com/)** · [GitHub Pages backup](https://rithvik-7.github.io/HydroLens/) · **[90-second demo guide](docs/DEMO.md)** · **[Model and assumptions](docs/MODEL.md)**
 
 ## What works
 
