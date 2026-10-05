@@ -9,7 +9,7 @@
 
 ## Explain the engineering clearly
 
-6. **Ask the AI:** open **AI water advisor** and choose **Explain my water balance**. Google Gemini answers using the scenario computed on the server. No GPU or model download is needed. Allow up to a minute for a sleeping free server to wake.
+We simulate 365 days of collection, tank storage, overflow and demand. A Google Gemini language model explains these server-verified numbers and answers follow-up questions. The AI does not detect roofs or fetch live weather. The sample rainfall and storm timing are illustrative.
 
 ## Questions judges may ask
 
@@ -23,4 +23,4 @@ Tests check conservation of water, conversion from millimetres and square metres
 A trained segmentation model would require licensed georeferenced imagery, labeled roof boundaries, measured area ground truth, and evaluation on unseen buildings. Forecast-based planning would require independently verified historical weather and forecast evaluation. Neither capability is claimed in the current product.
 
 **Why GitHub Pages?**
-All implemented planning functions run in the browser. There are no required API keys, paid services, user accounts, databases, or server dependencies. The full source and deployment workflow are reviewable.
+The planner is a static React app hosted on Render, with GitHub Pages as a backup. The Gemini advisor uses a separate Node.js service on Render and a server-side Google API key. The numerical planner still works when the AI service is unavailable.

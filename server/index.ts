@@ -37,7 +37,7 @@ createServer(async (req, res) => {
   } catch {return reply(400, {error: 'Please send a valid plan and a question of up to 500 characters.'});}
   active++;
   try {
-    const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent', {
+    const upstream = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent', {
       method: 'POST', headers: {'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY},
       body: JSON.stringify(payload), signal: AbortSignal.timeout(45000),
     });

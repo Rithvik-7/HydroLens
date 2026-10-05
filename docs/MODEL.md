@@ -29,7 +29,7 @@ Profiles for Bengaluru, Pune, and Chennai are synthetic teaching examples. Repla
 
 ## AI water advisor
 
-The AI advisor uses Google Gemini 3.8 Flash through a Node.js API server on Render. The server validates inputs, recomputes water balance and tank comparisons, and supplies that context to the language model. Conversation text and numeric inputs are sent to Google; roof images are not. There is no local model download. AI explanations can be wrong and do not replace the deterministic calculations or a qualified site assessment. The planner has no live weather connection or trained roof detector.
+The AI advisor uses Google Gemini 3.1 Flash-Lite Preview through a Node.js API server on Render. The server validates inputs, recomputes water balance and tank comparisons, and supplies that context to the language model. Conversation text and numeric inputs are sent to Google; roof images are not. There is no local model download. AI explanations can be wrong and do not replace the deterministic calculations or a qualified site assessment. The planner has no live weather connection or trained roof detector.
 
 ## Limits
 
