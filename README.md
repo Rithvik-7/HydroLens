@@ -58,7 +58,13 @@ The repository includes [a GitHub Actions workflow](.github/workflows/pages.yml)
 2. Push to `main`, or run **Validate and deploy HydroLens** under Actions.
 3. The workflow sets `NEXT_PUBLIC_BASE_PATH` to the repository name so scripts, styles, logo and imagery load under the Pages URL.
 
-No deployment secret, API key, Render account, or database is required.
+GitHub Pages deployment needs no deployment secret, API key, or database.
+
+## Deploy on Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Rithvik-7/HydroLens)
+
+The repository includes [`render.yaml`](render.yaml), which configures a free Render Static Site, builds the root-hosted app, and publishes `dist/pages/`. Sign in to Render, choose **Deploy to Render**, and authorize the GitHub repository when asked. Later pushes to `main` deploy automatically. No API key or database is used by the app.
 
 ## Deploy elsewhere
 
