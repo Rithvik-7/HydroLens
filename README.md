@@ -1,7 +1,7 @@
 <p align="center"><img src="public/brandmark.svg" width="88" alt="HydroLens roof and lens logo"></p>
 
 # HydroLens
-### Rooftop rainwater intelligence
+### AI water advisor for rooftop rainwater planning
 
 A practical rainwater harvesting feasibility and awareness tool for **PS 53**. Define a roof, explore rainfall, compare storage, and take a clear water plan away.
 
@@ -14,9 +14,12 @@ A practical rainwater harvesting feasibility and awareness tool for **PS 53**. D
 - **Storage insight:** 29 capacity simulations with a transparent recommendation targeting 95% of the best supply in the tested range.
 - **Rainfall explorer:** three labeled synthetic location profiles, twelve editable monthly values, rainfall/harvest charts, and a monthly calculation table.
 - **Scenario portability:** automatic device-local saving, validated JSON import/export, and a downloadable printable report.
+- **On-device AI advisor:** an opt-in Llama 3.2 1B language model answers questions grounded in the current roof, rainfall and tank calculations. It runs locally through WebGPU with no API key and sends no conversation to an AI service. The interface identifies the model with **Built with Llama**.
 - **Accessible glass interface:** responsive layouts, visible focus, labeled range controls, reduced-motion support, and mobile bottom navigation.
 
-**Data honesty:** the neighborhood image is AI-generated, roof boundaries are manual, and sample rainfall/storm timing are synthetic. This release has no trained roof-detection model or live weather API. Sizing is a deterministic simulation search. [Model details](docs/MODEL.md).
+**Data honesty:** the neighborhood image is AI-generated, roof boundaries are manual, and sample rainfall/storm timing are synthetic. The AI advisor is a general language model grounded with the current plan; it does not detect roofs, fetch live weather or replace the deterministic water-balance calculation. [Model details](docs/MODEL.md).
+
+The advisor downloads a **~705 MB** model the first time it is started, then the browser caches it. This requires a current WebGPU-compatible browser and a capable GPU. The assistant is optional; the rest of the planner works without WebGPU.
 
 ## Run locally
 

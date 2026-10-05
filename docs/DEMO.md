@@ -5,10 +5,11 @@
 3. **Rainfall:** compare Bengaluru and Chennai sample profiles. Open Field notes and change one monthly rainfall value. The app identifies the rainfall as user-entered.
 4. **Storage:** show the sizing insight. It compares 29 capacities from 1,000 to 15,000 L and chooses the smallest achieving 95% of the maximum simulated supply. Compare 2,000, 5,000 and 10,000 L tanks; show overflow and demand coverage.
 5. **Keep the plan:** export a printable HTML report and scenario JSON. Import the JSON to restore assumptions. Reload: numeric planning assumptions are saved on this device. Uploaded images remain session-only.
+6. **Ask the AI:** open **AI water advisor** and click **Load the AI model**. On a compatible device, the site downloads the free open Llama 3.2 1B model once (~705 MB) and caches it in the browser. Ask it to explain this plan; answers stream on-device, using the current area, rainfall, tank, collection and supply. Chat text is not sent to an AI server. If the judge device cannot run WebGPU, show the scenario context card and explain the local model's device requirements.
 
 ## Explain the engineering clearly
 
-“We model water collection with dimensional units, then simulate 365 days of inflow, tank capacity, overflow, and demand. The sizing algorithm is transparent and testable. The sample rain profiles and storm timing are synthetic; there is no trained roof segmentation model or live forecasting service in this release.”
+"We model water collection with dimensional units, then simulate 365 days of inflow, tank capacity, overflow, and demand. The sizing algorithm is transparent. A free Llama 3.2 1B open model runs locally as a grounded AI advisor using the current scenario. The sample rain profiles and storm timing are synthetic; the advisor does not detect roofs or connect to a live weather service."
 
 ## Questions judges may ask
 
