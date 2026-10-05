@@ -6,3 +6,17 @@ services:
     buildCommand: npm ci && npm run build:pages
     staticPublishPath: ./dist/pages
     autoDeployTrigger: commit
+  - type: web
+    name: hydrolens-advisor-rithvik7
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm ci
+    startCommand: npm run start:api
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: GEMINI_API_KEY
+        sync: false

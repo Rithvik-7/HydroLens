@@ -14,12 +14,12 @@ A practical rainwater harvesting feasibility and awareness tool for **PS 53**. D
 - **Storage insight:** 29 capacity simulations with a transparent recommendation targeting 95% of the best supply in the tested range.
 - **Rainfall explorer:** three labeled synthetic location profiles, twelve editable monthly values, rainfall/harvest charts, and a monthly calculation table.
 - **Scenario portability:** automatic device-local saving, validated JSON import/export, and a downloadable printable report.
-- **On-device AI advisor:** an opt-in Llama 3.2 1B language model answers questions grounded in the current roof, rainfall and tank calculations. It runs locally through WebGPU with no API key and sends no conversation to an AI service. The interface identifies the model with **Built with Llama**.
+- **Google Gemini AI advisor:** API-powered questions and answers grounded in the current plan. No model download. A Node.js server on Render keeps the API key private and recomputes the scenario before calling Gemini.
 - **Accessible glass interface:** responsive layouts, visible focus, labeled range controls, reduced-motion support, and mobile bottom navigation.
 
 **Data honesty:** the neighborhood image is AI-generated, roof boundaries are manual, and sample rainfall/storm timing are synthetic. The AI advisor is a general language model grounded with the current plan; it does not detect roofs, fetch live weather or replace the deterministic water-balance calculation. [Model details](docs/MODEL.md).
 
-The advisor downloads a **~705 MB** model the first time it is started, then the browser caches it. This requires a current WebGPU-compatible browser and a capable GPU. The assistant is optional; the rest of the planner works without WebGPU.
+Chat and numeric plan inputs are sent through the backend to Google Gemini. Roof images stay in your browser. AI availability depends on provider quota; a free Render server may take a minute to wake after inactivity.
 
 ## Run locally
 
@@ -110,3 +110,7 @@ Planning calculations run on the device. Images are not uploaded to a server, st
 ## Next research stage
 
 Supervised roof segmentation, geospatial calibration, and forecast-based scenarios require licensed imagery, ground truth, suitable datasets, and evaluation on unseen data. These are future extensions and are not presented as implemented capabilities.
+
+## Gemini server deployment
+
+The Render Blueprint deploys the static planner and a free Node.js API service. Set `GEMINI_API_KEY` in the API service environment when syncing the Blueprint. Never put this secret in a public build variable or Git. `npm run start:api` starts the API locally on port 3001. Configure `NEXT_PUBLIC_ADVISOR_API_URL` at frontend build time if your backend URL differs from the default. `ALLOWED_ORIGINS` is an optional comma-separated origin allowlist. `/health` reports readiness; `/api/chat` accepts validated scenario inputs and conversation history. Requests have body/history limits, bounded concurrency, rate limits and a provider timeout.

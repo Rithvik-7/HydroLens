@@ -29,7 +29,7 @@ Profiles for Bengaluru, Pune, and Chennai are synthetic teaching examples. Repla
 
 ## AI water advisor
 
-The AI advisor loads Meta's Llama 3.2 1B Instruct model through the open-source WebLLM runtime. It runs language-model inference locally in the browser using WebGPU after the visitor explicitly starts an approximately 705 MB first download. The browser caches model files for later use. No model API key or inference server is used. The advisor receives the current scenario values in its local prompt and generates explanations; it does not run or change the water-balance calculation. It can produce incorrect advice, so verify its explanations against the visible plan and qualified site assessment. Its responses use sample or user-entered rainfall and synthetic storm timing, never live weather. The interface credits Meta's model as **Built with Llama** and links its license and use policy: [Llama 3.2 Community License](https://www.llama.com/license/) and [Llama 3.2 Acceptable Use Policy](https://www.llama.com/llama3_2/use-policy/). Source model: [Llama 3.2 1B Instruct](https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC); runtime: [WebLLM](https://github.com/mlc-ai/web-llm).
+The AI advisor uses Google Gemini 3.8 Flash through a Node.js API server on Render. The server validates inputs, recomputes water balance and tank comparisons, and supplies that context to the language model. Conversation text and numeric inputs are sent to Google; roof images are not. There is no local model download. AI explanations can be wrong and do not replace the deterministic calculations or a qualified site assessment. The planner has no live weather connection or trained roof detector.
 
 ## Limits
 
