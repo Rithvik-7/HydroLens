@@ -12,6 +12,8 @@ for(const file of ["brandmark.svg","favicon.svg","neighborhood.webp",".nojekyll"
  if(!existsSync(resolve(directory,file)))throw Error(`Missing product asset: ${file}`);
 }
 const chunks=readdirSync(resolve(directory,"assets")).filter(f=>f.endsWith(".js")).map(f=>readFileSync(resolve(directory,"assets",f),"utf8")).join("\n");
-if(!chunks.includes("Make every drop count.")||!chunks.includes("TANK SIZING INSIGHT")||!chunks.includes("HydroLens AI")||!chunks.includes("Google Gemini"))throw Error("Product or AI model code missing from deployment.");
+const requiredCopy=["Plan your rainwater system.","Roof photo","Your first rainwater estimate.","HydroLens AI","Google Gemini"];
+const missingCopy=requiredCopy.filter(copy=>!chunks.includes(copy));
+if(missingCopy.length)throw Error(`Planner or advisor code missing from deployment: ${missingCopy.join(", ")}`);
 if(!chunks.includes(`${base}/`))throw Error("Deployment base path is missing.");
 console.log(`Static entrypoint and ${assets.length} linked assets verified for ${base || "/"}.`);
