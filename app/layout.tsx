@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import "./planner-redesign.css";
 import { assetPath } from "@/lib/assets";
 
 export const metadata: Metadata = {
