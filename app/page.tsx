@@ -1,50 +1,153 @@
 "use client";
-import {useCallback,useEffect,useRef,useState} from "react";
-import {ArrowDownToLine,BookOpen,ChevronRight,Droplets,FlaskConical,House,Layers3,MapPin,ScanLine,Search,Waves,CircleHelp,Check,FileText,Info,CloudRain,Upload,Save,Sparkles} from "lucide-react";
-import {Sidebar,SidebarProvider} from "@/components/ui/sidebar";
-import {Dialog,DialogContent,DialogTitle,DialogDescription,DialogHeader} from "@/components/ui/dialog";
-import {RoofMap} from "@/components/roof-map";
-import {Assumptions,CompareStorage,FieldNotes,Potential,RainChart,StorageCard} from "@/components/planner-panels";
-import {DEFAULT_INPUTS,PROFILES,fmt,simulate,validateInputs,type PlanningInputs} from "@/lib/hydrology";
-import {assetPath} from "@/lib/assets";
-import {parseScenario,SCENARIO_STORAGE_KEY} from "@/lib/scenario";
-import {downloadText,reportHtml} from "@/lib/report";
-import {AIWaterAdvisor} from "@/components/ai-water-advisor";
-import {recommendStorage} from "@/lib/hydrology";
 
-const navigation=[{id:"overview",label:"Overview",icon:Layers3},{id:"roof",label:"Roof workspace",icon:ScanLine},{id:"storage",label:"Storage planner",icon:Waves},{id:"learn",label:"Field notes",icon:BookOpen},{id:"advisor",label:"AI water advisor",icon:Sparkles}];
-const headings:Record<string,{eyebrow:string;title:string;description:string}>={overview:{eyebrow:"ROOFTOP RAINWATER PLANNER",title:"Make every drop count.",description:"A clearer view of what your roof can collect, and how much you can use."},roof:{eyebrow:"01 / DEFINE YOUR CATCHMENT",title:"Start with your roof.",description:"Set the measured area and collection assumptions for your building."},storage:{eyebrow:"03 / SIZE YOUR STORAGE",title:"Find your tank’s sweet spot.",description:"Compare capacity, water supplied, and overflow for the same scenario."},learn:{eyebrow:"02 / UNDERSTAND YOUR RAINFALL",title:"Know what goes into your plan.",description:"Review the rainfall, calculations, and steps toward an installation."},advisor:{eyebrow:"AI WATER ADVISOR · GEMINI",title:"A water plan you can talk to.",description:"Google Gemini explains your current scenario. Ask a question without downloading a model."}};
-export default function Home(){
- const [view,setView]=useState("overview");const [inputs,setInputs]=useState<PlanningInputs>(DEFAULT_INPUTS);const [profileId,setProfileId]=useState("bengaluru");const [locationOpen,setLocationOpen]=useState(false);const [reportOpen,setReportOpen]=useState(false);const [search,setSearch]=useState("");const [downloaded,setDownloaded]=useState(false);
- const [notice,setNotice]=useState("");const [ready,setReady]=useState(false);const [saveStatus,setSaveStatus]=useState("Session ready");const importFile=useRef<HTMLInputElement>(null);
- const mainRef=useRef<HTMLElement>(null);
- const profile=PROFILES.find(p=>p.id===profileId)||PROFILES[0];const result=simulate(inputs);const heading=headings[view];const customRain=inputs.rain.some((n,i)=>n!==profile.rain[i]);const tankInsight=recommendStorage(inputs);
- const update=useCallback((patch:Partial<PlanningInputs>)=>setInputs(v=>{const next={...v,...patch};validateInputs(next);return next}),[]);
- const navigate=useCallback((next:string)=>{if(!headings[next])return;setView(next);window.location.hash=next;window.scrollTo({top:0,behavior:"instant"});requestAnimationFrame(()=>mainRef.current?.focus({preventScroll:true}))},[]);
- // eslint-disable-next-line react-hooks/set-state-in-effect -- Restore browser-only saved state after mount; localStorage is unavailable during prerender.
- useEffect(()=>{try{const saved=localStorage.getItem(SCENARIO_STORAGE_KEY);if(saved){const restored=parseScenario(JSON.parse(saved));setInputs(restored.inputs);setProfileId(restored.profile);setSaveStatus("Saved on this device")}}catch{setSaveStatus("Session only")}setReady(true)},[]);
- useEffect(()=>{if(!ready)return;const timer=setTimeout(()=>{try{localStorage.setItem(SCENARIO_STORAGE_KEY,JSON.stringify({schemaVersion:1,profile:profileId,inputs}));setSaveStatus("Saved on this device")}catch{setSaveStatus("Session only · export to keep")}},400);return()=>clearTimeout(timer)},[inputs,profileId,ready]);
- useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(""),7000);return()=>clearTimeout(timer)},[notice]);
- async function importScenario(e:React.ChangeEvent<HTMLInputElement>){const file=e.target.files?.[0];e.target.value="";if(!file)return;try{if(file.size>100000)throw Error("Choose a scenario file smaller than 100 KB.");const scenario=parseScenario(JSON.parse(await file.text()));setInputs(scenario.inputs);setProfileId(scenario.profile);setNotice("Scenario imported. Your calculations are updated.");setReportOpen(false)}catch(error){setNotice(error instanceof Error?error.message:"This scenario could not be opened.")}}
- useEffect(()=>{const sync=()=>{const value=window.location.hash.slice(1);if(headings[value])setView(value);else setView("overview")};sync();window.addEventListener("hashchange",sync);return()=>window.removeEventListener("hashchange",sync)},[]);
- useEffect(()=>{
-   type Tool={name:string;description:string;inputSchema:object;annotations:object;execute:(input:unknown)=>unknown};
-   const context=(document as Document&{modelContext?:{registerTool:(tool:Tool,options:{signal:AbortSignal})=>void|Promise<void>}}).modelContext;
-   if(!context)return;const life=new AbortController();
-   Promise.resolve(context.registerTool({name:"calculate_rainwater_scenario",description:"Calculate an illustrative water balance using the visible planning assumptions with optional area and tank overrides. Does not change the workspace or send data.",inputSchema:{type:"object",properties:{area:{type:"number",minimum:1,maximum:100000},tank:{type:"number",minimum:0,maximum:1000000}},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:false},execute:(raw:unknown)=>{if(typeof raw!=="object"||raw===null||Array.isArray(raw))throw Error("Expected an object");const overrides=raw as Record<string,unknown>;if(Object.keys(overrides).some(k=>k!=="area"&&k!=="tank"))throw Error("Only area and tank are supported");const next={...inputs,...overrides} as PlanningInputs;const r=simulate(next);return {area:next.area,tank:next.tank,annualCollectionLitres:Math.round(r.annualHarvest),suppliedLitres:Math.round(r.supplied),coveragePercent:Number(r.coverage.toFixed(1)),dataStatus:"planning simulation; rainfall is sample or user-entered; synthetic storm timing"}}},{signal:life.signal})).catch(()=>{});return()=>life.abort();
- },[inputs]);
- function selectProfile(id:string){const p=PROFILES.find(p=>p.id===id);if(!p)return;setProfileId(id);update({rain:[...p.rain]});setLocationOpen(false);setSearch("")}
- function downloadReport(){downloadText(reportHtml(inputs,`${profile.neighborhood}, ${profile.city}`,customRain),"HydroLens-planning-report.html","text/html;charset=utf-8");setDownloaded(true)}
- return <SidebarProvider className="app-shell"><a className="skip-link" href="#main-content">Skip to planner</a><Sidebar collapsible="none" className="sidebar"><a className="brand" href="#overview" onClick={()=>navigate("overview")} aria-label="HydroLens home"><img className="brand-mark" src={assetPath("brandmark.svg")} alt="" width={40} height={40}/><span className="brand-wordmark">Hydro<span>Lens</span></span></a><div className="workspace-label">PERSONAL WORKSPACE</div><nav aria-label="Main navigation">{navigation.map(({id,label,icon:Icon})=><button className={`nav-item ${view===id?"active":""}`} aria-current={view===id?"page":undefined} aria-label={label} key={id} onClick={()=>navigate(id)}><Icon size={19}/><span>{label}</span>{view===id&&<span className="nav-active"/>}</button>)}</nav><div className="sidebar-line"/><div className="workspace-label">YOUR PROJECT</div><button className="project-item" onClick={()=>setLocationOpen(true)}><span className="project-icon"><MapPin size={17}/></span><span>{profile.neighborhood} residence<small>{profile.city}, {profile.region}</small></span></button><div className="sidebar-bottom"><div className="sidebar-note"><span className="mini-label"><FlaskConical size={14}/>THE EXPLORER EDITION</span><p>From roof<br/>to resource.</p><span>Sample data · editable assumptions</span></div><button className="help-link" onClick={()=>navigate("learn")}><CircleHelp size={18}/>How HydroLens works<ChevronRight size={16}/></button><div className="profile"><span className="avatar">HL</span><div>Your scenario<small>{saveStatus}</small></div></div></div></Sidebar>
- <div className="main-shell"><header className="topbar"><a href="#overview" className="mobile-brand" aria-label="HydroLens home" onClick={()=>navigate("overview")}><img src={assetPath("brandmark.svg")} width={34} height={34} alt=""/><span>HydroLens</span></a><div className="breadcrumb">Workspace<ChevronRight size={14}/><span>{navigation.find(n=>n.id===view)?.label}</span></div><div className="top-actions"><button className="import-button" aria-label="Import scenario" onClick={()=>importFile.current?.click()}><Upload size={15}/><span>Import scenario</span></button><button className="demo-tag" onClick={()=>navigate("learn")}><FlaskConical size={13}/>{customRain?"Custom rainfall":"Sample rainfall"}</button><span className="topbar-divider"/><span className="region">INDIA</span></div></header><main ref={mainRef} tabIndex={-1} id="main-content" className="main-content">{notice&&<div className="scenario-notice" role="status">{notice}<button aria-label="Dismiss message" onClick={()=>setNotice("")}>Dismiss</button></div>}<div className="page-heading"><div><div className="eyebrow">{heading.eyebrow}</div><h1>{heading.title}</h1><p>{heading.description}</p></div><button aria-label="Export report" className="button secondary" onClick={()=>{setReportOpen(true);setDownloaded(false)}}><ArrowDownToLine size={16}/><span>Export report</span></button></div><div className="location-bar"><MapPin size={18}/><span>{profile.neighborhood}, {profile.city}</span><span className="location-detail">{customRain?"User-entered rainfall":"Sample rainfall profile"}</span><button className="location-change" aria-label="Change location" onClick={()=>setLocationOpen(true)}><Search size={15}/><span>Change location</span></button></div>
- <nav className="planning-path" aria-label="Planning steps">{[{id:"roof",number:"01",title:"Define your roof",detail:"Area & collection",icon:House},{id:"learn",number:"02",title:"Review rainfall",detail:"Monthly assumptions",icon:CloudRain},{id:"storage",number:"03",title:"Choose storage",detail:"Capacity & coverage",icon:Waves}].map(({id,number,title,detail,icon:Icon})=><button key={id} onClick={()=>navigate(id)} aria-current={view===id?"step":undefined} className={view===id?"current":""}><span className="path-number">{number}</span><Icon size={18}/><span><strong>{title}</strong><small>{detail}</small></span></button>)}</nav>
- {view==="overview"&&<button className="ai-quick-link" onClick={()=>navigate("advisor")} aria-label="Open the AI water advisor"><span className="ai-quick-icon"><Sparkles size={17}/></span><span className="ai-quick-copy"><strong>Ask AI about your water plan</strong><small>Google Gemini advisor · grounded in your current numbers</small></span><ChevronRight size={18} className="ai-quick-arrow"/></button>}
- <div hidden={view!=="overview"&&view!=="roof"} className={`main-grid ${view==="roof"?"roof-layout":""}`}><RoofMap area={inputs.area} onArea={area=>update({area})} expanded={view==="roof"}/><Potential inputs={inputs} onExplore={()=>navigate("storage")}/>{view==="overview"?<><RainChart inputs={inputs}/><StorageCard inputs={inputs} update={update} onCompare={()=>navigate("storage")}/></>:<Assumptions inputs={inputs} update={update}/>}</div>
- {view==="storage"&&<CompareStorage inputs={inputs} update={update}/>}
- {view==="learn"&&<FieldNotes inputs={inputs} update={update}/>}
- <div hidden={view!=="advisor"}><AIWaterAdvisor inputs={inputs} city={profile.city} neighborhood={profile.neighborhood} annualCollection={result.annualHarvest} waterSupplied={result.supplied} overflow={result.overflow} demandMet={result.coverage} suggestedTank={tankInsight.recommended?.tank??null}/></div>
- <input ref={importFile} type="file" accept=".json,application/json" className="sr-only" aria-label="Import HydroLens scenario" onChange={importScenario}/><footer className="page-footer"><span className="footer-brand"><Droplets size={14}/>A better relationship with rain.</span><span className="save-status">HydroLens · <Save size={13}/>{saveStatus}</span></footer></main></div>
- <Dialog open={locationOpen} onOpenChange={setLocationOpen}><DialogContent className="hydro-dialog"><DialogHeader><div className="eyebrow">EXPLORE A DIFFERENT SEASON</div><DialogTitle>Choose a rainfall profile.</DialogTitle><DialogDescription>Changes the illustrative rainfall profile. The neighborhood image stays the same.</DialogDescription></DialogHeader><label className="search-input"><Search size={18}/><input aria-label="Search sample locations" placeholder="Search Bengaluru, Pune, Chennai…" value={search} onChange={e=>setSearch(e.target.value)}/></label><div className="location-options">{PROFILES.filter(p=>`${p.city} ${p.neighborhood} ${p.region}`.toLowerCase().includes(search.toLowerCase())).map(p=><button key={p.id} onClick={()=>selectProfile(p.id)}><MapPin size={20}/><span><strong>{p.neighborhood}, {p.city}</strong><small>{p.region} · {fmt(p.rain.reduce((a,b)=>a+b,0))} mm sample year</small></span>{p.id===profileId?<Check size={17}/>:<ChevronRight size={17}/>}</button>)}{!PROFILES.some(p=>`${p.city} ${p.neighborhood} ${p.region}`.toLowerCase().includes(search.toLowerCase()))&&<p className="empty-results">No sample found. Try Bengaluru, Pune, or Chennai. You can edit rainfall values in Field notes.</p>}</div><p className="dialog-note"><Info size={15}/>Sample profiles are for comparison, not local climate records.</p></DialogContent></Dialog>
- <Dialog open={reportOpen} onOpenChange={setReportOpen}><DialogContent className="hydro-dialog report-dialog"><DialogHeader><div className="eyebrow">TAKE YOUR PLAN WITH YOU</div><DialogTitle>Your rainwater plan.</DialogTitle><DialogDescription>{profile.neighborhood}, {profile.city} · planning report</DialogDescription></DialogHeader><div className="report-preview"><FileText size={26}/><div><strong>HydroLens planning report</strong><span>Inputs, water balance, monthly data and next steps.</span></div></div><div className="report-stats"><div><span>Collection potential</span><strong>{fmt(result.annualHarvest)} L</strong></div><div><span>Demand supplied</span><strong>{result.coverage.toFixed(1)}%</strong></div><div><span>Tank capacity</span><strong>{fmt(inputs.tank)} L</strong></div></div><p className="dialog-note">The report includes your assumptions and data limitations. Open the downloaded HTML file to print it or save it as a PDF.</p><button className="button primary" onClick={downloadReport}>{downloaded?<Check size={17}/>:<ArrowDownToLine size={17}/>} {downloaded?"Download again":"Download report"}</button>{downloaded&&<p className="download-success" role="status">Report prepared. Check your browser’s downloads.</p>}<button className="button secondary" onClick={()=>downloadText(JSON.stringify({schemaVersion:1,profile:profileId,dataStatus:customRain?"user-entered rainfall; synthetic storm timing":"sample rainfall; synthetic storm timing",inputs,results:result},null,2),"HydroLens-scenario.json","application/json")}>Download calculation data<ArrowDownToLine size={15}/></button></DialogContent></Dialog>
- </SidebarProvider>;
+import { useMemo, useState } from "react";
+import { ArrowLeft, ArrowRight, Check, CloudRain, Droplets, MapPin, MessageCircle, Ruler, Upload, X } from "lucide-react";
+import { AIWaterAdvisor } from "@/components/ai-water-advisor";
+import { DEFAULT_INPUTS, PROFILES, fmt, recommendStorage, simulate, type PlanningInputs } from "@/lib/hydrology";
+import { assetPath } from "@/lib/assets";
+
+const steps = ["Roof photo", "Roof size", "Your location", "Local rain", "Your plan"];
+
+export default function Home() {
+  const [step, setStep] = useState(0);
+  const [inputs, setInputs] = useState<PlanningInputs>(DEFAULT_INPUTS);
+  const [profileId, setProfileId] = useState<string>(PROFILES[0].id);
+  const [roofImage, setRoofImage] = useState("");
+  const [chatOpen, setChatOpen] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const profile = PROFILES.find((item) => item.id === profileId) ?? PROFILES[0];
+  const results = useMemo(() => simulate(inputs), [inputs]);
+  const storage = useMemo(() => recommendStorage(inputs), [inputs]);
+
+  function updateArea(value: string) {
+    const area = Number(value);
+    if (Number.isFinite(area) && area >= 1 && area <= 100000) setInputs((current) => ({ ...current, area }));
+  }
+
+  function selectLocation(id: string) {
+    const selected = PROFILES.find((item) => item.id === id);
+    if (!selected) return;
+    setProfileId(id);
+    setInputs((current) => ({ ...current, rain: [...selected.rain] }));
+  }
+
+  function uploadImage(file?: File) {
+    setUploadError("");
+    if (!file) return;
+    if (!( ["image/jpeg", "image/png", "image/webp"].includes(file.type)) || file.size > 8 * 1024 * 1024) {
+      setUploadError("Choose a JPG, PNG or WebP image smaller than 8 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setRoofImage(String(reader.result));
+    reader.onerror = () => setUploadError("We couldn’t open that image. Please try another one.");
+    reader.readAsDataURL(file);
+  }
+
+  const canContinue = step !== 1 || (inputs.area >= 1 && inputs.area <= 100000);
+
+  return (
+    <div className="simple-app">
+      <a className="simple-skip" href="#planner">Skip to the planner</a>
+      <header className="simple-header">
+        <a className="simple-brand" href="#top" id="top" aria-label="HydroLens home">
+          <img src={assetPath("brandmark.svg")} alt="" width="40" height="40" />
+          <span>HydroLens</span>
+        </a>
+        <span className="simple-header-note"><Droplets size={17} aria-hidden="true" /> A simple rainwater plan</span>
+      </header>
+
+      <main className="simple-main" id="planner">
+        <section className="simple-intro" aria-labelledby="page-title">
+          <p className="simple-kicker">ROOFTOP RAINWATER PLANNER</p>
+          <h1 id="page-title">Plan your rainwater system.</h1>
+          <p>Five small steps. A clear starting point for your home.</p>
+        </section>
+
+        <nav className="simple-progress" aria-label="Planner progress">
+          {steps.map((label, index) => (
+            <button type="button" key={label} className={`simple-progress-step ${index === step ? "is-current" : ""} ${index < step ? "is-done" : ""}`} aria-current={index === step ? "step" : undefined} onClick={() => index < step && setStep(index)} disabled={index > step}>
+              <span className="simple-step-dot">{index < step ? <Check size={15} aria-hidden="true" /> : index + 1}</span>
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <section className="simple-card" aria-live="polite">
+          <div className="simple-card-heading">
+            <span className="simple-step-label">STEP {step + 1} OF 5</span>
+            <span className="simple-step-count">{steps[step]}</span>
+          </div>
+
+          {step === 0 && <div className="simple-step-content">
+            <div className="simple-icon"><Upload size={23} aria-hidden="true" /></div>
+            <h2>Take a photo of your roof.</h2>
+            <p>A clear picture helps you keep track of the roof you’re planning for. Your photo stays on this device.</p>
+            <label className="simple-upload" htmlFor="roof-photo">
+              {roofImage ? <img src={roofImage} alt="Preview of the roof photo you selected" /> : <><Upload size={22} aria-hidden="true" /><span>Choose a roof photo</span><small>JPG, PNG or WebP · up to 8 MB</small></>}
+              <input id="roof-photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => uploadImage(event.target.files?.[0])} />
+            </label>
+            {uploadError && <p className="simple-error" role="alert">{uploadError}</p>}
+            <p className="simple-note">No photo right now? You can continue without one.</p>
+          </div>}
+
+          {step === 1 && <div className="simple-step-content">
+            <div className="simple-icon"><Ruler size={23} aria-hidden="true" /></div>
+            <h2>How big is your roof?</h2>
+            <p>Enter the roof area in square metres. A photo alone cannot measure it accurately.</p>
+            <label className="simple-field" htmlFor="roof-area">Roof area <span>(square metres)</span>
+              <div className="simple-input-wrap"><input id="roof-area" type="number" min="1" max="100000" step="0.1" inputMode="decimal" value={inputs.area} onChange={(event) => updateArea(event.target.value)} aria-describedby="area-help" /><span>m²</span></div>
+            </label>
+            <div className="hand-note" aria-hidden="true"><span>Type your measured roof area here</span><svg viewBox="0 0 120 48"><path d="M112 6C82 5 54 12 23 32M23 32l18-1M23 32l7-15" /></svg></div>
+            <p id="area-help" className="simple-note">A rough estimate is okay to get started. You can update it later.</p>
+          </div>}
+
+          {step === 2 && <div className="simple-step-content">
+            <div className="simple-icon"><MapPin size={23} aria-hidden="true" /></div>
+            <h2>Where is the building?</h2>
+            <p>Choose the closest sample location. This sets an example rainfall pattern for your estimate.</p>
+            <label className="simple-field" htmlFor="location">Your nearest sample location
+              <select id="location" value={profileId} onChange={(event) => selectLocation(event.target.value)}>
+                {PROFILES.map((item) => <option value={item.id} key={item.id}>{item.city} — {item.neighborhood}</option>)}
+              </select>
+            </label>
+            <div className="hand-note location-hand-note" aria-hidden="true"><span>Choose the nearest place</span><svg viewBox="0 0 120 48"><path d="M112 6C82 5 54 12 23 32M23 32l18-1M23 32l7-15" /></svg></div>
+            <p className="simple-note">These are example profiles, not live local weather records.</p>
+          </div>}
+
+          {step === 3 && <div className="simple-step-content">
+            <div className="simple-icon"><CloudRain size={23} aria-hidden="true" /></div>
+            <h2>Here’s the example rainfall.</h2>
+            <p>We’ll use this sample to estimate how much water your roof might collect.</p>
+            <div className="rain-summary"><div className="rain-summary-icon"><CloudRain size={25} aria-hidden="true" /></div><div><span>Sample annual rainfall</span><strong>{fmt(inputs.rain.reduce((sum, month) => sum + month, 0))} mm</strong><small>{profile.city} · example data</small></div></div>
+            <details className="simple-details"><summary>See rainfall by month</summary><div className="month-list">{inputs.rain.map((amount, index) => <span key={index}><b>{["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][index]}</b>{amount} mm</span>)}</div></details>
+            <p className="simple-note">You can change your location by going back one step.</p>
+          </div>}
+
+          {step === 4 && <div className="simple-step-content simple-results">
+            <div className="simple-icon"><Droplets size={23} aria-hidden="true" /></div>
+            <h2>Your first rainwater estimate.</h2>
+            <p>This is a planning estimate using your roof size and sample rainfall.</p>
+            <div className="result-highlight"><span>Potential water collected in a sample year</span><strong>{fmt(results.annualHarvest)} <small>litres</small></strong></div>
+            <div className="result-grid"><div><span>Roof area</span><strong>{fmt(inputs.area)} m²</strong></div><div><span>Example location</span><strong>{profile.city}</strong></div><div><span>Suggested tank size</span><strong>{storage.recommended ? `${fmt(storage.recommended.tank)} L` : "No estimate"}</strong></div><div><span>Water supplied in simulation</span><strong>{fmt(results.supplied)} L</strong></div></div>
+            <p className="simple-disclaimer">Illustrative estimate only. Actual results depend on measured roof area, local rainfall, roof material, filtration and tank design. Ask a qualified installer before building.</p>
+            <button className="simple-restart" type="button" onClick={() => setStep(0)}>Start again</button>
+          </div>}
+
+          <div className="simple-card-actions">
+            {step > 0 && step < 5 && <button className="simple-back" type="button" onClick={() => setStep((current) => current - 1)}><ArrowLeft size={17} aria-hidden="true" /> Back</button>}
+            {step < 4 && <button className="simple-next" type="button" onClick={() => setStep((current) => current + 1)} disabled={!canContinue}> {step === 3 ? "Show my estimate" : "Continue"} <ArrowRight size={17} aria-hidden="true" /></button>}
+          </div>
+        </section>
+        <p className="simple-footer-note">Your plan is saved only for this visit. <a href="https://rithvik-7.github.io/HydroLens/" target="_blank" rel="noreferrer">About HydroLens</a></p>
+      </main>
+
+      <aside className={`chat-dock ${chatOpen ? "chat-dock-open" : ""}`} aria-label="HydroLens help chat">
+        {chatOpen && <div className="chat-dock-panel" id="hydrolens-chat"><div className="chat-dock-top"><div><strong>Need a hand?</strong><span>Ask about any step.</span></div><button type="button" className="chat-close" onClick={() => setChatOpen(false)} aria-label="Close help chat"><X size={20} /></button></div>
+          <AIWaterAdvisor inputs={inputs} city={profile.city} neighborhood={profile.neighborhood} annualCollection={results.annualHarvest} waterSupplied={results.supplied} overflow={results.overflow} demandMet={results.coverage} suggestedTank={storage.recommended?.tank ?? null} />
+        </div>}
+        <button className="chat-launcher" type="button" aria-expanded={chatOpen} aria-controls="hydrolens-chat" onClick={() => setChatOpen((open) => !open)}><MessageCircle size={20} aria-hidden="true" /><span>{chatOpen ? "Close help" : "Ask for help"}</span></button>
+      </aside>
+    </div>
+  );
 }
